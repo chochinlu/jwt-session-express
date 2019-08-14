@@ -1,32 +1,66 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
-const jwt = require('jsonwebtoken');
-const dotenv = require('dotenv');
 
-dotenv.config();
+// TODO: DB: stores
+const users = [{ id: 1, name: 'park', password: '1234' }];
+
+const TWO_HOURS = 1000 * 60 * 60 * 2;
 
 const app = express();
 app.use(bodyParser.json());
 
 app.use(
   session({
+    saveUninitialized: false,
+    resave: false,
     secret: 'session secrect',
-    cookie: { maxAge: 60 * 1000 * 30 }
+    cookie: {
+      maxAge: TWO_HOURS,
+      sameSite: true
+    }
   })
 );
 
 const PORT = 3000;
 
-app.get('/', (req, res) => {
-  if (req.session.sign) {
-    console.log(req.session);
-    res.send(`Welcome back, ${req.session.name}`);
+const checkAuth = (req, res, next) => {
+  // console.log(req.session);
+  if (!req.session.userId) {
+    res.status(401).send('Auth fail. Please login!!');
   } else {
-    req.session.sign = true;
-    req.session.name = 'pppark';
-    res.send('Welcome!');
+    next();
   }
+};
+
+app.get('/', checkAuth, (req, res) => {
+  const user = users.find(user => user.id === req.session.userId);
+  res.send(`Hello ${user.name}`);
+});
+
+app.post('/login', (req, res) => {
+  const { name, password } = req.body;
+  const user = users.find(
+    user => user.name === name && user.password === password
+  );
+
+  if (user) {
+    req.session.userId = user.id;
+    res.send(`logged in! ${user.id}`);
+  } else {
+    res.status(401).send('Authentication error');
+  }
+});
+
+app.post('/logout', (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      res.status(500).send('logout failed.');
+    } else {
+      res.clearCookie('sid');
+      res.send('See you.');
+    }
+  });
 });
 
 app.listen(PORT, () => {
