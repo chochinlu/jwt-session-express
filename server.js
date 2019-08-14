@@ -2,6 +2,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const validateToken = require('./utils');
+
 dotenv.config();
 
 const app = express();
@@ -24,6 +26,11 @@ app.post('/login', (req, res) => {
     const token = jwt.sign(payload, secret, options);
     res.send({ token });
   }
+});
+
+app.get('/protected', validateToken, (req, res, next) => {
+  console.log(req.decoded);
+  res.send('protected');
 });
 
 app.post('/logout', (req, res) => {
